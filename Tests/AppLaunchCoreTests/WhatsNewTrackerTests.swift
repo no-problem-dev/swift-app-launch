@@ -152,3 +152,22 @@ struct BundleVersionTests {
         #expect(store.record == LaunchRecord(lastLaunchedVersion: "1.6.0"))
     }
 }
+
+@Suite("まだお知らせの無いアプリ")
+struct EmptyCatalogTests {
+
+    @Test("空のカタログは何も出さないが、起動ごとの版は残す")
+    func recordsVersionsWithoutReleases() {
+        let store = InMemoryLaunchRecordStore(LaunchRecord(lastLaunchedVersion: "1.0.3"))
+        let tracker = WhatsNewTracker<Never>(catalog: .empty, store: store)
+        #expect(tracker.catalog.releases.isEmpty)
+        #expect(tracker.begin(currentVersion: "1.1.0") == LaunchStart(change: .upgraded(from: "1.0.3"), release: nil))
+        #expect(store.record == LaunchRecord(lastLaunchedVersion: "1.1.0"))
+    }
+
+    @Test("空のカタログは配列リテラルの [] と同じ")
+    func sameAsEmptyLiteral() {
+        let literal: ReleaseCatalog<NewsPage> = []
+        #expect(ReleaseCatalog<NewsPage>.empty == literal)
+    }
+}

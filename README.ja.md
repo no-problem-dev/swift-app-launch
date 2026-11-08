@@ -133,6 +133,18 @@ queue.dismissed(.whatsNew(release), then: canStartTrial ? [.trialOffer] : [])
 3. **古い画面で出していた版を `Release` で宣言し、** 版の比較と古い画面は同じ変更で消します。両方が出ることがないように。
 4. **ほかの起動の画面は1つずつ `LaunchQueue` に移します。** キューの外の画面は `isIdle` を待ちます。
 
+## まだお知らせの無いアプリ
+
+それでもトラッカーは始めておきます。今から起動ごとの版が残るので、あとで最初の `Release` を宣言したとき、その版に上げた人に届きます。
+枚がまだ無いあいだは枚の型に `Never` を使い、`LaunchQueue` にもお知らせの項目を入れません（`start.release` はいつも `nil` です）。
+
+```swift
+let tracker = WhatsNewTracker<Never>(catalog: .empty)
+tracker.begin(bundle: .main)
+```
+
+最初のお知らせを出すときに、`Never` を枚の型に、`.empty` をその版の `Release` に替えます。
+
 ## ドキュメント
 
 API の説明は DocC（[AppLaunchCore](Sources/AppLaunchCore/Documentation.docc)・[WhatsNewUI](Sources/WhatsNewUI/Documentation.docc)）にあります。

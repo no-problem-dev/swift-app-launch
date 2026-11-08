@@ -28,6 +28,16 @@ public struct ReleaseCatalog<Page: Hashable & Sendable>: Hashable, Sendable, Exp
         self.init(releases)
     }
 
+    /// A catalog with no releases, for an app that has nothing to tell yet.
+    ///
+    /// The tracker still records each launch's version, so the first release declared later is
+    /// shown to the people who update to it. An app with no pages at all uses `Never` as the page:
+    ///
+    /// ```swift
+    /// let tracker = WhatsNewTracker<Never>(catalog: .empty)
+    /// ```
+    public static var empty: Self { Self([]) }
+
     /// The newest release.
     public var latest: Release<Page>? { releases.last }
 

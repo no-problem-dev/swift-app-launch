@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `ReleaseCatalog.empty`, for an app that has nothing to tell yet:
+  `WhatsNewTracker<Never>(catalog: .empty)`. The README shows how such an app starts recording
+  versions so its first release later reaches the people who update to it
+
 ## [0.2.0] - 2026-11-08
 
 ### Fixed

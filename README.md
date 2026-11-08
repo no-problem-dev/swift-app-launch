@@ -151,6 +151,19 @@ An app that already shows what's new by comparing versions in its own code:
 4. **Move other launch screens into `LaunchQueue`** one at a time. Screens outside the queue wait for
    `isIdle`.
 
+## An app with nothing to tell yet
+
+Start the tracker anyway, so each launch's version is recorded from now on and the first release
+declared later reaches the people who update to it. Use `Never` as the page until there is one, and
+leave the what's-new item out of `LaunchQueue` until then: `start.release` is always `nil`.
+
+```swift
+let tracker = WhatsNewTracker<Never>(catalog: .empty)
+tracker.begin(bundle: .main)
+```
+
+When the first release comes, replace `Never` with the page type and `.empty` with the releases.
+
 ## Documentation
 
 The API reference is on DocC ([AppLaunchCore](Sources/AppLaunchCore/Documentation.docc),
