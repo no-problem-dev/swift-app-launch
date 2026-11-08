@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `WhatsNewPager(_:title:…)` with a `@ViewBuilder` title, for an app whose type styles return
+  `some View` (`title: { Text("What's New").typography(.titleSmall) }`). It sits in the same place as
+  the `Text` title: one line beside the close button, read as a header. The pager's font and color
+  apply underneath, so the app's style wins. The `title: Text?` initializer stays as it was
+
 ## [0.2.1] - 2026-11-08
 
 ### Added

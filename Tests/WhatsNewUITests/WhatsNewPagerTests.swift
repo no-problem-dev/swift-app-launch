@@ -49,4 +49,17 @@ struct WhatsNewPagerTests {
         .frame(width: 390, height: 844)
         #expect(ImageRenderer(content: pager).cgImage != nil)
     }
+
+    @Test("画面の見出しをアプリの文字の型の View で渡せる")
+    func rendersViewTitle() {
+        let pager = WhatsNewPager(
+            Release(version: "2.0", pages: [Page.first]),
+            title: { Text("What's New").kerning(0.2).padding(.vertical, 2) },
+            onClose: { _ in },
+            text: { _ in WhatsNewPageText(title: Text("Title"), message: Text("Line")) },
+            art: { _, _ in Circle() }
+        )
+        .frame(width: 390, height: 844)
+        #expect(ImageRenderer(content: pager).cgImage != nil)
+    }
 }
