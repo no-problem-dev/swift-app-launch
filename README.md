@@ -77,7 +77,8 @@ Pages known before the pager appears are simpler with `release.keeping { ... }`.
 ## A screen title, and a next step on a page
 
 A title naming the screen (such as "What's New") goes in `title:`; it sits beside the close button.
-Each page still has one heading and one line.
+Each page still has one heading and one line. When the app's type styles return a view rather
+than `Text`, pass the title as a view: `title: { Text("What's New").typography(.titleSmall) }`.
 
 A page can move to a next step the app draws, such as choosing a time for the reminder it just
 showed and then asking for notifications. The step takes the page's place and moves on with

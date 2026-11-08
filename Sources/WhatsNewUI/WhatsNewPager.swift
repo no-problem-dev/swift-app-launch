@@ -9,7 +9,8 @@ import SwiftUI
 ///
 /// - Every page but a permission page has a close button, so the screen can be closed at any time.
 /// - A screen title (such as "What's New") may sit at the top, beside the close button. It names the
-///   screen; each page keeps its one heading and one line.
+///   screen; each page keeps its one heading and one line. Pass `Text`, or a `@ViewBuilder` title
+///   when the app's own type styles return `some View`.
 /// - A page's button may move the page to a next step the app draws, such as choosing a time
 ///   (``WhatsNewAction/step(_:asksPermission:content:)``).
 /// - Pages change with a slide, or a fade when Reduce Motion is on, and illustrations are told to
@@ -26,7 +27,7 @@ import SwiftUI
 public struct WhatsNewPager<Page: Hashable & Sendable, Art: View>: View {
 
     private let release: Release<Page>
-    private let title: Text?
+    private let title: AnyView?
     private let artFraction: CGFloat
     private let labels: WhatsNewLabels
     private let text: @MainActor (Page) -> WhatsNewPageText
@@ -64,8 +65,59 @@ public struct WhatsNewPager<Page: Hashable & Sendable, Art: View>: View {
         action: @escaping @MainActor (Page) -> WhatsNewAction? = { _ in nil },
         @ViewBuilder art: @escaping @MainActor (Page, WhatsNewArtContext) -> Art
     ) {
+        self.init(
+            release, screenTitle: title.map { AnyView($0) }, artFraction: artFraction, labels: labels,
+            onEvent: onEvent, onClose: onClose, text: text, action: action, art: art
+        )
+    }
+
+    /// A pager whose screen title is a view, for an app whose type styles return `some View`
+    /// (`Text("What's New").typography(.titleSmall)`).
+    ///
+    /// The title still names the screen in one line beside the close button; it is not a page's
+    /// heading. The pager's font, color and one-line limit apply underneath, so the app's own style
+    /// wins where it sets one.
+    ///
+    /// - Parameters:
+    ///   - release: The release to show. Its pages may change while on screen; its version may not.
+    ///   - title: The screen's title at the top, beside the close button. It is read as a header.
+    ///   - artFraction: How much of the page height the illustration takes, kept between 0.5 and 0.6.
+    ///   - labels: The pager's own button labels.
+    ///   - onEvent: Receives `whats_new_shown` and `whats_new_closed` for analytics.
+    ///   - onClose: Called once when the screen closes, with how. Remove the pager here.
+    ///   - text: The heading and line for a page.
+    ///   - action: A page's own main button, such as a permission request; `nil` for "Next".
+    ///   - art: The illustration for a page.
+    public init<Title: View>(
+        _ release: Release<Page>,
+        @ViewBuilder title: () -> Title,
+        artFraction: CGFloat = 0.6,
+        labels: WhatsNewLabels = .standard,
+        onEvent: @escaping @MainActor (WhatsNewEvent) -> Void = { _ in },
+        onClose: @escaping @MainActor (WhatsNewCloseVia) -> Void,
+        text: @escaping @MainActor (Page) -> WhatsNewPageText,
+        action: @escaping @MainActor (Page) -> WhatsNewAction? = { _ in nil },
+        @ViewBuilder art: @escaping @MainActor (Page, WhatsNewArtContext) -> Art
+    ) {
+        self.init(
+            release, screenTitle: AnyView(title()), artFraction: artFraction, labels: labels,
+            onEvent: onEvent, onClose: onClose, text: text, action: action, art: art
+        )
+    }
+
+    private init(
+        _ release: Release<Page>,
+        screenTitle: AnyView?,
+        artFraction: CGFloat,
+        labels: WhatsNewLabels,
+        onEvent: @escaping @MainActor (WhatsNewEvent) -> Void,
+        onClose: @escaping @MainActor (WhatsNewCloseVia) -> Void,
+        text: @escaping @MainActor (Page) -> WhatsNewPageText,
+        action: @escaping @MainActor (Page) -> WhatsNewAction?,
+        art: @escaping @MainActor (Page, WhatsNewArtContext) -> Art
+    ) {
         self.release = release
-        self.title = title
+        self.title = screenTitle
         self.artFraction = min(max(artFraction, 0.5), 0.6)
         self.labels = labels
         self.text = text

@@ -67,6 +67,7 @@ WhatsNewPager(release, onClose: { _ in tracker.settle() }, text: text, art: art)
 ## 画面の見出しと、枚の中の次の段
 
 何の画面かの一言（「新しくなりました」など）は `title:` に渡します。× の横に出ます。枚ごとの見出し1つと1行は変わりません。
+アプリの文字の型が `Text` でなく View を返すときは、View で渡せます: `title: { Text("新しくなりました").typography(.titleSmall) }`。
 
 枚のボタンで、アプリが描く次の段に替えられます。見せたリマインダーの時刻を選び、通知の許可を聞く、など。
 段は枚の場所に出て、`finish()` で次の枚へ進みます。許可のダイアログへ進む段は `asksPermission: true` を渡します。
