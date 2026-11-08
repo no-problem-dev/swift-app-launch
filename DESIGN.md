@@ -45,6 +45,8 @@ These are what the pager enforces, or what the app is asked to keep.
 | The illustration moves, and stands still under Reduce Motion | App draws it, pager passes `WhatsNewArtContext.animates` and fades between pages instead of sliding | A moving picture shows the change happening. Reduce Motion is a request to stop that |
 | No price, plan or purchase invitation | App | The screen is a thank-you for updating. A sales pitch on it teaches people to close it next time. An invitation (such as a free trial) is its own screen after the pager closes, in the `followUp` slot (§6) |
 | A close button on every page | Pager | The person decides how long to look. The screen must never feel like a gate |
+| A screen title, if any, names the screen and sits beside the close button | Pager (`title:`) | It tells what the screen is. It is not a page's heading, so each page still has one |
+| A page may move to a next step for setting up the feature it showed (a choice, then the permission it needs) | App draws it, pager places it (`WhatsNewAction.step`) | Setting up right where the feature was seen is what makes the permission land. The step is not more announcement: no more text pages, no price, no "Later" before a permission dialog |
 | A permission is asked only on the page of the feature that needs it | App, through `WhatsNewAction.permission` | Asking at launch, before the feature is seen, gets "no". On that page the close button is hidden and pulling down is disabled, because an explanation before a permission dialog must lead to the dialog; declining happens in the dialog (App Review Guideline 5.1.1(iv); a "Later" there was rejected) |
 | Shown at most once per release, and not after onboarding | `WhatsNewTracker`, `LaunchQueue` | Someone who just onboarded has nothing to catch up on |
 
@@ -155,6 +157,8 @@ onEvent: { event in
 - 1つの版で1〜3枚
 - 値段・プラン・購入の誘いを置かない。更新してくれた人へのお知らせで、売り込みを載せると次から閉じられる。無料体験などの誘いは、お知らせを閉じた後の別の画面（`followUp`）で出す
 - × でいつでも閉じられる（どの枚にも置く）
+- 画面の上の一言（「新しくなりました」）は × の横に置ける（`title:`）。枚の見出しではないので、枚ごとの見出しは1つのまま
+- 枚のボタンで、その機能を使い始める次の段（時刻を選ぶ→その機能の許可）に替えられる（`WhatsNewAction.step`）。段はお知らせの続きではない: 文字の枚を足さない・値段を置かない・許可の前に「あとで」を置かない。許可へ進む段は `asksPermission: true` で × を隠す
 - 許可を聞くのはその機能の枚だけ。起動の瞬間には聞かない。その枚では × を隠し、下に引いて閉じられないようにする。許可の前の説明は必ず OS のダイアログへ進め、断るのはダイアログで選ぶ（審査 5.1.1(iv)。説明に「あとで」を置いてリジェクトされた）
 - 「動きを減らす」がオンなら、イラストは終わりの形で止め、枚の切り替えはスライドでなくフェードにする
 - 同じ版のお知らせは1回だけ。オンボーディングを見せた起動では出さない

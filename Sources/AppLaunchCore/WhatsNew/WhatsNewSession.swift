@@ -10,6 +10,9 @@ public struct WhatsNewSession: Hashable, Sendable {
     public private(set) var pageCount: Int
     /// The page on screen, from 0.
     public private(set) var index = 0
+    /// Whether the page on screen has moved to its next step, such as choosing a time after the
+    /// feature was shown. Cleared when the page changes.
+    public private(set) var isInStep = false
     /// How the screen was closed, once it has been.
     public private(set) var closedVia: WhatsNewCloseVia?
     private var hasAppeared = false
@@ -33,6 +36,14 @@ public struct WhatsNewSession: Hashable, Sendable {
         return .shown(release: release)
     }
 
+    /// The page's main button moved the page to its next step, in place of moving to the next page.
+    ///
+    /// The step finishes with ``advance()``, like the page's button would. Nothing is reported.
+    public mutating func enterStep() {
+        guard closedVia == nil else { return }
+        isInStep = true
+    }
+
     /// The page's main button was pressed: moves to the next page, or closes on the last one.
     ///
     /// Returns the closed event when this closed the screen, otherwise `nil`.
@@ -40,6 +51,7 @@ public struct WhatsNewSession: Hashable, Sendable {
         guard closedVia == nil else { return nil }
         if isLast { return close(via: .finished) }
         index += 1
+        isInStep = false
         return nil
     }
 
@@ -67,6 +79,7 @@ public struct WhatsNewSession: Hashable, Sendable {
             index = kept
         } else {
             index = min(index, pageCount - 1)
+            isInStep = false
         }
     }
 

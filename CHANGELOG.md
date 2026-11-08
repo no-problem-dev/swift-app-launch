@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `WhatsNewTracker.settle()` wrote the last launched version back along with clearing the waiting
+  release. A version that was only read (such as one a UI test passes as a launch argument, which
+  `UserDefaults` reads but does not keep) was saved to the device and seen again at the next
+  launch. `settle()` now writes only the waiting release, through the new
+  `LaunchRecordStore.save(pendingRelease:)`. It has a default (load, change, save), so stores an app
+  wrote keep compiling; `UserDefaultsLaunchRecordStore` writes the one key.
+
+### Added
+
+- `WhatsNewPager(_:title:...)`: a screen title (such as "What's New") beside the close button, read
+  as a header. Each page keeps its one heading and one line.
+- `WhatsNewAction.step(_:asksPermission:content:)`: a page's button moves the page to a next step the
+  app draws, such as choosing a reminder time and then asking for notifications. The step takes the
+  page's place without the dots and the main button, and moves on with
+  `WhatsNewStepContext.finish()`. A step that leads to a permission dialog hides the close button and
+  cannot be pulled down. Backed by `WhatsNewSession.enterStep()` and `isInStep`, cleared when the
+  page changes. `WhatsNewAction.opensStep` tells the two kinds of button apart.
+- Not added: a secondary button ("Later") in a step or on a page. Before a permission dialog it is
+  rejected in review (5.1.1(iv)), and elsewhere the close button is the way out (DESIGN.md §3).
+
 ## [0.1.1] - 2026-11-08
 
 ### Added

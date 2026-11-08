@@ -74,6 +74,33 @@ WhatsNewPager(release, onClose: { _ in tracker.settle() }, text: text, art: art)
 
 Pages known before the pager appears are simpler with `release.keeping { ... }`.
 
+## A screen title, and a next step on a page
+
+A title naming the screen (such as "What's New") goes in `title:`; it sits beside the close button.
+Each page still has one heading and one line.
+
+A page can move to a next step the app draws, such as choosing a time for the reminder it just
+showed and then asking for notifications. The step takes the page's place and moves on with
+`finish()`. A step that leads to a permission dialog passes `asksPermission: true`: the close
+button is hidden there and declining happens in the dialog, so the step has no "Later".
+
+```swift
+WhatsNewPager(
+    release,
+    title: Text("What's New"),
+    onClose: { _ in tracker.settle() },
+    text: text,
+    action: { page in
+        page == .reminder
+            ? .step(Text("Choose a time"), asksPermission: true) { step in
+                ReadingTimePicker(onChosen: { step.finish() })
+            }
+            : nil
+    },
+    art: art
+)
+```
+
 ## An invitation after what's new
 
 The pages carry no price, plan or purchase invitation ([DESIGN.md §3](./DESIGN.md#3-rules-for-the-screen)).

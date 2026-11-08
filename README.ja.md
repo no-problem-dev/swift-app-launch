@@ -64,6 +64,31 @@ WhatsNewPager(release, onClose: { _ in tracker.settle() }, text: text, art: art)
 
 出す前に分かっている枚なら `release.keeping { ... }` で絞る方が簡単です。
 
+## 画面の見出しと、枚の中の次の段
+
+何の画面かの一言（「新しくなりました」など）は `title:` に渡します。× の横に出ます。枚ごとの見出し1つと1行は変わりません。
+
+枚のボタンで、アプリが描く次の段に替えられます。見せたリマインダーの時刻を選び、通知の許可を聞く、など。
+段は枚の場所に出て、`finish()` で次の枚へ進みます。許可のダイアログへ進む段は `asksPermission: true` を渡します。
+その段では × を隠し、断るのはダイアログで選ぶので、段に「あとで」は置きません。
+
+```swift
+WhatsNewPager(
+    release,
+    title: Text("新しくなりました"),
+    onClose: { _ in tracker.settle() },
+    text: text,
+    action: { page in
+        page == .reminder
+            ? .step(Text("時間を決める"), asksPermission: true) { step in
+                ReadingTimePicker(onChosen: { step.finish() })
+            }
+            : nil
+    },
+    art: art
+)
+```
+
 ## お知らせの後の誘い
 
 枚には値段・プラン・購入の誘いを置きません（[DESIGN.md §3](./DESIGN.md#3-rules-for-the-screen)）。

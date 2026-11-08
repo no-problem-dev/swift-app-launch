@@ -26,6 +26,16 @@ public struct WhatsNewAction {
     /// Whether the button leads to a system permission dialog.
     public let asksPermission: Bool
     let perform: @MainActor () async -> Void
+    /// The page's next step, for ``step(_:asksPermission:content:)``.
+    var step: Step?
+
+    struct Step {
+        let asksPermission: Bool
+        let content: @MainActor (WhatsNewStepContext) -> AnyView
+    }
+
+    /// Whether the button moves the page to its next step instead of moving on.
+    public var opensStep: Bool { step != nil }
 
     /// A button that asks for a permission, then moves on whatever the answer.
     ///
@@ -46,6 +56,55 @@ public struct WhatsNewAction {
     public static func perform(_ label: Text, _ body: @escaping @MainActor () async -> Void) -> WhatsNewAction {
         WhatsNewAction(label: label, asksPermission: false, perform: body)
     }
+}
+
+extension WhatsNewAction {
+    /// A button that moves the page to its next step, drawn by the app, in place of the next page.
+    ///
+    /// For setting up the feature the page just showed, such as choosing a time for a reminder and
+    /// then asking for notifications. The step takes the page's place, without the dots and the main
+    /// button; it moves on by calling ``WhatsNewStepContext/finish()``.
+    ///
+    /// The screen's rules still hold in the step: no price, plan or purchase invitation, and no
+    /// "Later" before a permission dialog. A step that leads to a permission dialog passes
+    /// `asksPermission: true`: the close button is hidden and the screen cannot be pulled down
+    /// there, and declining happens in the dialog (App Review Guideline 5.1.1(iv)). Otherwise the
+    /// close button stays, and it is the way out of the step.
+    /// - Parameters:
+    ///   - label: The page's button, naming the step (such as "Choose a time").
+    ///   - asksPermission: Whether the step leads to a system permission dialog.
+    ///   - content: The step, given how to move on.
+    public static func step<Content: View>(
+        _ label: Text,
+        asksPermission: Bool = false,
+        @ViewBuilder content: @escaping @MainActor (WhatsNewStepContext) -> Content
+    ) -> WhatsNewAction {
+        WhatsNewAction(
+            label: label,
+            asksPermission: false,
+            perform: {},
+            step: Step(asksPermission: asksPermission, content: { AnyView(content($0)) })
+        )
+    }
+}
+
+/// What a page's next step needs: whether to move, and how to move on.
+@MainActor
+public struct WhatsNewStepContext {
+    /// Whether to move. `false` when Reduce Motion is on.
+    public let animates: Bool
+    private let onFinish: @MainActor () -> Void
+
+    /// - Parameters:
+    ///   - animates: Whether to move.
+    ///   - finish: Moves on to the next page, or closes the screen on the last one.
+    public init(animates: Bool, finish: @escaping @MainActor () -> Void) {
+        self.animates = animates
+        self.onFinish = finish
+    }
+
+    /// Moves on to the next page, or closes the screen on the last one, as the page's button would.
+    public func finish() { onFinish() }
 }
 
 /// What an illustration needs to know to draw itself.

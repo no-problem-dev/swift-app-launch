@@ -21,6 +21,20 @@ public protocol LaunchRecordStore: Sendable {
     func load() -> LaunchRecord
     /// Replaces the stored record.
     func save(_ record: LaunchRecord)
+    /// Replaces only the waiting release, leaving the last launched version as stored.
+    ///
+    /// ``WhatsNewTracker/settle()`` uses it, so forgetting a release never writes back a version
+    /// that was only read, such as one a test passed as a launch argument. The default loads the
+    /// record, changes the release and saves it; a store that keeps the fields apart writes the one.
+    func save(pendingRelease: String?)
+}
+
+extension LaunchRecordStore {
+    public func save(pendingRelease: String?) {
+        var record = load()
+        record.pendingRelease = pendingRelease
+        save(record)
+    }
 }
 
 /// A store that keeps each field as a plain string under its own `UserDefaults` key.
@@ -96,6 +110,10 @@ public struct UserDefaultsLaunchRecordStore: LaunchRecordStore {
     public func save(_ record: LaunchRecord) {
         set(record.lastLaunchedVersion, forKey: lastLaunchedVersionKey)
         set(record.pendingRelease, forKey: pendingReleaseKey)
+    }
+
+    public func save(pendingRelease: String?) {
+        set(pendingRelease, forKey: pendingReleaseKey)
     }
 
     private func set(_ value: String?, forKey key: String) {
