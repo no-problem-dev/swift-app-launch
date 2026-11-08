@@ -75,6 +75,21 @@ struct WhatsNewTrackerTests {
         #expect(defaults.object(forKey: "pending") == nil)
         #expect(store.load() == LaunchRecord(lastLaunchedVersion: "1.6.1"))
     }
+
+    @Test("アプリが持っている UserDefaults に、そのまま読み書きする")
+    func userDefaultsInstance() throws {
+        let suite = "swift-app-launch.tests.\(UUID().uuidString)"
+        defer { UserDefaults().removePersistentDomain(forName: suite) }
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.set("1.5.0", forKey: "appVersion")
+
+        let store = UserDefaultsLaunchRecordStore(defaults: defaults, lastLaunchedVersionKey: "appVersion")
+        #expect(store.load() == LaunchRecord(lastLaunchedVersion: "1.5.0"))
+
+        store.save(LaunchRecord(lastLaunchedVersion: "1.6.0", pendingRelease: "1.6.0"))
+        #expect(defaults.string(forKey: "appVersion") == "1.6.0")
+        #expect(defaults.string(forKey: "whatsNew.pending") == "1.6.0")
+    }
 }
 
 @Suite("バンドルから版を読む")

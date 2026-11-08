@@ -13,6 +13,10 @@ import SwiftUI
 /// - It reports `whats_new_shown` once when it appears and `whats_new_closed` once when it closes,
 ///   by the close button, the last page's button, or being pulled down.
 ///
+/// - The release may change while on screen, such as a page added once a feature flag is known:
+///   pass the new release (same version) and the pager keeps the page on screen and redraws the
+///   dots (``WhatsNewSession/update(from:to:)``).
+///
 /// Present it full screen or in a sheet, and remove it when `onClose` is called. Style the main
 /// button with `.buttonStyle(_:)` on the pager.
 public struct WhatsNewPager<Page: Hashable & Sendable, Art: View>: View {
@@ -27,11 +31,14 @@ public struct WhatsNewPager<Page: Hashable & Sendable, Art: View>: View {
     private let onClose: @MainActor (WhatsNewCloseVia) -> Void
 
     @State private var session: WhatsNewSession
+    /// The release the session follows. Changes together with the session, so a page and its
+    /// position never disagree.
+    @State private var shown: Release<Page>
     @State private var isPerforming = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// - Parameters:
-    ///   - release: The release to show.
+    ///   - release: The release to show. Its pages may change while on screen; its version may not.
     ///   - artFraction: How much of the page height the illustration takes, kept between 0.5 and 0.6.
     ///   - labels: The pager's own button labels.
     ///   - onEvent: Receives `whats_new_shown` and `whats_new_closed` for analytics.
@@ -58,9 +65,10 @@ public struct WhatsNewPager<Page: Hashable & Sendable, Art: View>: View {
         self.onEvent = onEvent
         self.onClose = onClose
         _session = State(initialValue: WhatsNewSession(release))
+        _shown = State(initialValue: release)
     }
 
-    private var page: Page { release.pages[session.index] }
+    private var page: Page { shown.pages[session.index] }
     private var pageAction: WhatsNewAction? { action(page) }
     private var asksPermission: Bool { pageAction?.asksPermission == true }
 
@@ -69,7 +77,7 @@ public struct WhatsNewPager<Page: Hashable & Sendable, Art: View>: View {
             header
             GeometryReader { proxy in
                 pageView(artHeight: proxy.size.height * artFraction)
-                    .id(session.index)
+                    .id(page)
                     .transition(reduceMotion ? .opacity : .asymmetric(
                         insertion: .move(edge: .trailing).combined(with: .opacity),
                         removal: .move(edge: .leading).combined(with: .opacity)
@@ -84,6 +92,14 @@ public struct WhatsNewPager<Page: Hashable & Sendable, Art: View>: View {
         .interactiveDismissDisabled(asksPermission)
         .onAppear {
             if let event = session.appear() { onEvent(event) }
+        }
+        .onChange(of: release) { _, new in
+            // A closed screen is on its way out; keep drawing what was closed.
+            guard session.closedVia == nil else { return }
+            withAnimation(reduceMotion ? nil : .snappy) {
+                session.update(from: shown, to: new)
+                shown = new
+            }
         }
         .onDisappear {
             // Gone without either button: pulled down, or removed by the app.
@@ -145,7 +161,7 @@ public struct WhatsNewPager<Page: Hashable & Sendable, Art: View>: View {
 
     private var footer: some View {
         VStack(spacing: 16) {
-            if release.pages.count > 1 { dots }
+            if shown.pages.count > 1 { dots }
             Button(action: primary) {
                 (pageAction?.label ?? (session.isLast ? labels.done : labels.next))
                     .frame(maxWidth: .infinity)
@@ -157,7 +173,7 @@ public struct WhatsNewPager<Page: Hashable & Sendable, Art: View>: View {
 
     private var dots: some View {
         HStack(spacing: 6) {
-            ForEach(release.pages.indices, id: \.self) { index in
+            ForEach(shown.pages.indices, id: \.self) { index in
                 Capsule()
                     .fill(index == session.index ? AnyShapeStyle(.primary) : AnyShapeStyle(.tertiary))
                     .frame(width: index == session.index ? 18 : 6, height: 6)

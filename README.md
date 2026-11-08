@@ -55,6 +55,75 @@ if let release = start.release {
 }
 ```
 
+## Pages known only after launch
+
+A page that depends on something known later in the launch, such as a feature flag fetched from the
+server, can join the release while the pager is on screen. Pass the new release with the same
+version; the pager keeps the page on screen and redraws the dots.
+
+```swift
+@State var release: Release<NewsPage>   // from start.release: [.yearCards]
+
+WhatsNewPager(release, onClose: { _ in tracker.settle() }, text: text, art: art)
+    .task {
+        if await flags.isOn(.yearNotes) {
+            release = Release(version: "1.6.1", pages: [.yearCards, .yearNotes])
+        }
+    }
+```
+
+Pages known before the pager appears are simpler with `release.keeping { ... }`.
+
+## An invitation after what's new
+
+The pages carry no price, plan or purchase invitation ([DESIGN.md §3](./DESIGN.md#3-rules-for-the-screen)).
+An invitation, such as starting a free trial, is a screen of its own that comes **after** the pager
+closes, in the `followUp` slot. Decide it in `onClose` and pass it to `dismissed(_:then:)`, so
+nothing slips in between.
+
+```swift
+enum LaunchScreen: LaunchItem {
+    case onboarding, whatsNew(Release<NewsPage>), trialOffer
+
+    var slot: LaunchSlot {
+        switch self {
+        case .onboarding: .onboarding
+        case .whatsNew: .whatsNew
+        case .trialOffer: .followUp
+        }
+    }
+}
+
+// In the pager's onClose:
+tracker.settle()
+queue.dismissed(.whatsNew(release), then: canStartTrial ? [.trialOffer] : [])
+```
+
+The queue keeps the invitation's rules: not after onboarding or a paywall at this launch, and at most
+one of a review ask or a follow-up per launch. One that cannot be shown stays in `held`; store it if
+it should come back.
+
+## Moving from a version hard-coded in the app
+
+An app that already shows what's new by comparing versions in its own code:
+
+1. **Keep what devices already have.** Pass the key the app already stores the last version under.
+   The value is read as a plain string, so a device that saw the old screen does not see it again.
+   An App Group or a test's `UserDefaults` is passed as is.
+
+   ```swift
+   let store = UserDefaultsLaunchRecordStore(defaults: appGroupDefaults, lastLaunchedVersionKey: "lastSeenVersion")
+   let tracker = WhatsNewTracker(catalog: catalog, store: store)
+   ```
+
+2. **When the app stored nothing,** existing devices count as fresh installs and see nothing. If the
+   app can tell from its own data that the device was used before, pass the oldest version that use
+   could have been as `untrackedEarlierUse:`.
+3. **Declare the release the old screen showed** as a `Release`, and remove the version check and
+   the old screen in the same change, so the two never both appear.
+4. **Move other launch screens into `LaunchQueue`** one at a time. Screens outside the queue wait for
+   `isIdle`.
+
 ## Documentation
 
 The API reference is on DocC ([AppLaunchCore](Sources/AppLaunchCore/Documentation.docc),

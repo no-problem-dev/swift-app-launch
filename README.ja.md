@@ -46,6 +46,68 @@ if let release = start.release {
 }
 ```
 
+## 起動の後で分かる枚
+
+起動の途中で分かること（サーバーから取ったフィーチャーフラグなど）で決まる枚は、枚を出している間に足せます。
+同じ版の新しい `Release` を渡すと、いま出している枚はそのままで、点の数が変わります。
+
+```swift
+@State var release: Release<NewsPage>   // start.release から: [.yearCards]
+
+WhatsNewPager(release, onClose: { _ in tracker.settle() }, text: text, art: art)
+    .task {
+        if await flags.isOn(.yearNotes) {
+            release = Release(version: "1.6.1", pages: [.yearCards, .yearNotes])
+        }
+    }
+```
+
+出す前に分かっている枚なら `release.keeping { ... }` で絞る方が簡単です。
+
+## お知らせの後の誘い
+
+枚には値段・プラン・購入の誘いを置きません（[DESIGN.md §3](./DESIGN.md#3-rules-for-the-screen)）。
+無料体験を始める誘いなどは、お知らせを閉じた**後**に出す別の画面にして、`followUp` の枠に入れます。
+`onClose` で決めて `dismissed(_:then:)` に渡すと、間にほかの画面が入りません。
+
+```swift
+enum LaunchScreen: LaunchItem {
+    case onboarding, whatsNew(Release<NewsPage>), trialOffer
+
+    var slot: LaunchSlot {
+        switch self {
+        case .onboarding: .onboarding
+        case .whatsNew: .whatsNew
+        case .trialOffer: .followUp
+        }
+    }
+}
+
+// お知らせの onClose で。
+tracker.settle()
+queue.dismissed(.whatsNew(release), then: canStartTrial ? [.trialOffer] : [])
+```
+
+誘いの決まりはキューが守ります。その起動でオンボーディングかペイウォールを出していたら出さない。評価のお願いと後に続く画面は1回の起動で1つまで。
+出せなかった分は `held` に残るので、次の起動に回すなら保存します。
+
+## バージョンを直書きしているアプリが移るとき
+
+版を自前のコードで比べてお知らせを出しているアプリの場合です。
+
+1. **端末にある値をそのまま使う。** いまの版を残しているキーを渡します。値は文字列のまま読むので、古い画面を見た端末に同じ物は出ません。
+   App Group やテストの `UserDefaults` もそのまま渡せます。
+
+   ```swift
+   let store = UserDefaultsLaunchRecordStore(defaults: appGroupDefaults, lastLaunchedVersionKey: "lastSeenVersion")
+   let tracker = WhatsNewTracker(catalog: catalog, store: store)
+   ```
+
+2. **何も残していなかったアプリでは、** 今の端末は新しく入れた扱いになり、何も出ません。前から使っていたことがアプリのデータで分かるなら、
+   その使い方でありえる一番古い版を `untrackedEarlierUse:` に渡します。
+3. **古い画面で出していた版を `Release` で宣言し、** 版の比較と古い画面は同じ変更で消します。両方が出ることがないように。
+4. **ほかの起動の画面は1つずつ `LaunchQueue` に移します。** キューの外の画面は `isIdle` を待ちます。
+
 ## ドキュメント
 
 API の説明は DocC（[AppLaunchCore](Sources/AppLaunchCore/Documentation.docc)・[WhatsNewUI](Sources/WhatsNewUI/Documentation.docc)）にあります。

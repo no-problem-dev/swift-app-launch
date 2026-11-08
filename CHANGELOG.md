@@ -7,7 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-First release, planned as 0.1.0.
+### Added
+
+- `WhatsNewPager` takes a changed release while on screen, such as a page added once a feature
+  flag is known: pass the new release with the same version, and the page on screen stays. Backed
+  by `WhatsNewSession.update(from:to:)`; `WhatsNewSession.pageCount` now follows the change.
+- `UserDefaultsLaunchRecordStore(defaults:lastLaunchedVersionKey:pendingReleaseKey:)` takes a
+  `UserDefaults` instance the app holds (an App Group suite, or one a test or scenario set up),
+  `.standard` by default. The store stays `Sendable`. It replaces
+  `init(lastLaunchedVersionKey:pendingReleaseKey:)`, so existing calls compile as before;
+  `init?(suiteName:...)` is unchanged.
+- README: pages known only after launch, an invitation (such as a free trial) after what's new in
+  the `followUp` slot, and moving from a version hard-coded in the app.
+
+## [0.1.0] - 2026-11-08
 
 ### Added
 
