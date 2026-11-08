@@ -8,6 +8,10 @@ import SwiftUI
 /// button, moving between pages, Reduce Motion, and how the screen was closed.
 ///
 /// - Every page but a permission page has a close button, so the screen can be closed at any time.
+/// - A screen title (such as "What's New") may sit at the top, beside the close button. It names the
+///   screen; each page keeps its one heading and one line.
+/// - A page's button may move the page to a next step the app draws, such as choosing a time
+///   (``WhatsNewAction/step(_:asksPermission:content:)``).
 /// - Pages change with a slide, or a fade when Reduce Motion is on, and illustrations are told to
 ///   stand still (``WhatsNewArtContext/animates``).
 /// - It reports `whats_new_shown` once when it appears and `whats_new_closed` once when it closes,
@@ -22,6 +26,7 @@ import SwiftUI
 public struct WhatsNewPager<Page: Hashable & Sendable, Art: View>: View {
 
     private let release: Release<Page>
+    private let title: Text?
     private let artFraction: CGFloat
     private let labels: WhatsNewLabels
     private let text: @MainActor (Page) -> WhatsNewPageText
@@ -39,6 +44,8 @@ public struct WhatsNewPager<Page: Hashable & Sendable, Art: View>: View {
 
     /// - Parameters:
     ///   - release: The release to show. Its pages may change while on screen; its version may not.
+    ///   - title: The screen's title at the top, beside the close button, or `nil` for none. Style it
+    ///     with `Text` modifiers; it is read as a header.
     ///   - artFraction: How much of the page height the illustration takes, kept between 0.5 and 0.6.
     ///   - labels: The pager's own button labels.
     ///   - onEvent: Receives `whats_new_shown` and `whats_new_closed` for analytics.
@@ -48,6 +55,7 @@ public struct WhatsNewPager<Page: Hashable & Sendable, Art: View>: View {
     ///   - art: The illustration for a page.
     public init(
         _ release: Release<Page>,
+        title: Text? = nil,
         artFraction: CGFloat = 0.6,
         labels: WhatsNewLabels = .standard,
         onEvent: @escaping @MainActor (WhatsNewEvent) -> Void = { _ in },
@@ -57,6 +65,7 @@ public struct WhatsNewPager<Page: Hashable & Sendable, Art: View>: View {
         @ViewBuilder art: @escaping @MainActor (Page, WhatsNewArtContext) -> Art
     ) {
         self.release = release
+        self.title = title
         self.artFraction = min(max(artFraction, 0.5), 0.6)
         self.labels = labels
         self.text = text
@@ -70,23 +79,34 @@ public struct WhatsNewPager<Page: Hashable & Sendable, Art: View>: View {
 
     private var page: Page { shown.pages[session.index] }
     private var pageAction: WhatsNewAction? { action(page) }
-    private var asksPermission: Bool { pageAction?.asksPermission == true }
+    private var step: WhatsNewAction.Step? { session.isInStep ? pageAction?.step : nil }
+    private var asksPermission: Bool {
+        if let step { return step.asksPermission }
+        return pageAction?.asksPermission == true
+    }
 
     public var body: some View {
         VStack(spacing: 0) {
             header
-            GeometryReader { proxy in
-                pageView(artHeight: proxy.size.height * artFraction)
-                    .id(page)
-                    .transition(reduceMotion ? .opacity : .asymmetric(
-                        insertion: .move(edge: .trailing).combined(with: .opacity),
-                        removal: .move(edge: .leading).combined(with: .opacity)
-                    ))
+            if let step {
+                step.content(WhatsNewStepContext(animates: !reduceMotion, finish: advance))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .transition(.opacity)
+                    .accessibilityIdentifier("whatsNew.step.\(session.pageNumber)")
+            } else {
+                GeometryReader { proxy in
+                    pageView(artHeight: proxy.size.height * artFraction)
+                        .id(page)
+                        .transition(reduceMotion ? .opacity : .asymmetric(
+                            insertion: .move(edge: .trailing).combined(with: .opacity),
+                            removal: .move(edge: .leading).combined(with: .opacity)
+                        ))
+                }
+                .clipped()
+                footer
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 16)
             }
-            .clipped()
-            footer
-                .padding(.horizontal, 24)
-                .padding(.bottom, 16)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .interactiveDismissDisabled(asksPermission)
@@ -141,6 +161,15 @@ public struct WhatsNewPager<Page: Hashable & Sendable, Art: View>: View {
 
     private var header: some View {
         HStack {
+            if let title {
+                title
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .accessibilityAddTraits(.isHeader)
+                    .accessibilityIdentifier("whatsNew.title")
+                    .padding(.leading, 16)
+            }
             Spacer()
             if !asksPermission {
                 Button { close(via: .closeButton) } label: {
@@ -185,6 +214,10 @@ public struct WhatsNewPager<Page: Hashable & Sendable, Art: View>: View {
 
     private func primary() {
         guard let pageAction else { return advance() }
+        if pageAction.opensStep {
+            withAnimation(reduceMotion ? .easeInOut(duration: 0.2) : .snappy) { session.enterStep() }
+            return
+        }
         isPerforming = true
         Task { @MainActor in
             await pageAction.perform()

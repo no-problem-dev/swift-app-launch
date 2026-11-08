@@ -28,4 +28,25 @@ struct WhatsNewPagerTests {
         let renderer = ImageRenderer(content: pager)
         #expect(renderer.cgImage != nil)
     }
+
+    @Test("画面の見出しと、枚の中の次の段を付けて描ける")
+    func rendersTitleAndStep() {
+        let action = WhatsNewAction.step(Text("Choose a time"), asksPermission: true) { context in
+            Button("Done") { context.finish() }
+        }
+        #expect(action.opensStep)
+        #expect(!action.asksPermission)
+        #expect(!WhatsNewAction.perform(Text("Go")) {}.opensStep)
+
+        let pager = WhatsNewPager(
+            Release(version: "2.0", pages: [Page.first, .second]),
+            title: Text("What's New"),
+            onClose: { _ in },
+            text: { _ in WhatsNewPageText(title: Text("Title"), message: Text("Line")) },
+            action: { page in page == .first ? action : nil },
+            art: { _, _ in Circle() }
+        )
+        .frame(width: 390, height: 844)
+        #expect(ImageRenderer(content: pager).cgImage != nil)
+    }
 }

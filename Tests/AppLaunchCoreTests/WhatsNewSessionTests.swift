@@ -85,4 +85,37 @@ struct WhatsNewSessionTests {
         session.update(from: before, to: Release(version: "1.8.0", pages: [NewsPage.memoOnShelf, .reminder]))
         #expect(session.pageCount == 1)
     }
+
+    @Test("枚の中の次の段は、その枚に居たまま入り、送ると次の枚で外れる")
+    func step() {
+        var session = WhatsNewSession(Fixture.v160)
+        session.enterStep()
+        #expect(session.isInStep)
+        #expect(session.index == 0)
+        #expect(session.advance() == nil)
+        #expect(!session.isInStep)
+        #expect(session.index == 1)
+    }
+
+    @Test("段に入った枚が残る変化では段のまま、外されたら段も外れる")
+    func stepAcrossUpdate() {
+        let before = Fixture.v160
+        var session = WhatsNewSession(before)
+        session.enterStep()
+        let kept = Release(version: "1.6.0", pages: [NewsPage.yearCards, .unlimitedBooks, .memoOnShelf])
+        session.update(from: before, to: kept)
+        #expect(session.isInStep)
+        #expect(session.index == 1)
+        session.update(from: kept, to: Release(version: "1.6.0", pages: [NewsPage.yearCards, .memoOnShelf]))
+        #expect(!session.isInStep)
+    }
+
+    @Test("最後の枚の段を終えたら finished で閉じる。閉じた後は段に入らない")
+    func stepOnLastPage() {
+        var session = WhatsNewSession(Fixture.v180)
+        session.enterStep()
+        #expect(session.advance() == .closed(release: "1.8.0", page: 1, pages: 1, via: .finished))
+        session.enterStep()
+        #expect(session.closedVia == .finished)
+    }
 }

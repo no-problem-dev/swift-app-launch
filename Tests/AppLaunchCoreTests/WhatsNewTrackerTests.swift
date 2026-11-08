@@ -90,6 +90,38 @@ struct WhatsNewTrackerTests {
         #expect(defaults.string(forKey: "appVersion") == "1.6.0")
         #expect(defaults.string(forKey: "whatsNew.pending") == "1.6.0")
     }
+
+    @Test("settle は待っているお知らせだけを消し、読んだだけの版を端末に書き戻さない")
+    func settleLeavesVersionUnwritten() throws {
+        let suite = "swift-app-launch.tests.\(UUID().uuidString)"
+        defer { UserDefaults().removePersistentDomain(forName: suite) }
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        let store = UserDefaultsLaunchRecordStore(defaults: defaults)
+        let tracker = WhatsNewTracker(catalog: Fixture.catalog, store: store)
+        #expect(tracker.begin(currentVersion: "1.6.1", untrackedEarlierUse: "1.6.0").release == Fixture.v161)
+
+        // A test passes the previous version as a launch argument: read, but not kept on the device.
+        defaults.removeObject(forKey: "launch.lastVersion")
+        defaults.register(defaults: ["launch.lastVersion": "1.5.0"])
+        tracker.settle()
+
+        let kept = defaults.persistentDomain(forName: suite) ?? [:]
+        #expect(kept["launch.lastVersion"] == nil)
+        #expect(kept["whatsNew.pending"] == nil)
+        #expect(tracker.pending == nil)
+    }
+
+    @Test("自前の保存先は、既定の save(pendingRelease:) で版を残したまま消せる")
+    func settleThroughDefaultImplementation() {
+        final class Recording: LaunchRecordStore, @unchecked Sendable {
+            var record = LaunchRecord(lastLaunchedVersion: "1.6.1", pendingRelease: "1.6.1")
+            func load() -> LaunchRecord { record }
+            func save(_ record: LaunchRecord) { self.record = record }
+        }
+        let store = Recording()
+        WhatsNewTracker(catalog: Fixture.catalog, store: store).settle()
+        #expect(store.record == LaunchRecord(lastLaunchedVersion: "1.6.1"))
+    }
 }
 
 @Suite("バンドルから版を読む")

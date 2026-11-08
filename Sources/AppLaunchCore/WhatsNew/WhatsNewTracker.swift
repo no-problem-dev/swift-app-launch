@@ -81,9 +81,10 @@ public struct WhatsNewTracker<Page: Hashable & Sendable>: Sendable {
     }
 
     /// Forgets the waiting release: it was closed, or this launch dropped it.
+    ///
+    /// Only the waiting release is written. The last launched version was recorded by
+    /// ``begin(currentVersion:untrackedEarlierUse:)`` and is left as stored.
     public func settle() {
-        var record = store.load()
-        record.pendingRelease = nil
-        store.save(record)
+        store.save(pendingRelease: nil)
     }
 }
