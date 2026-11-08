@@ -57,8 +57,8 @@ if let release = start.release {
 
 ## Documentation
 
-The API reference is on DocC ([AppLaunchCore](https://no-problem-dev.github.io/swift-app-launch/documentation/applaunchcore/),
-[WhatsNewUI](https://no-problem-dev.github.io/swift-app-launch/documentation/whatsnewui/)).
+The API reference is on DocC ([AppLaunchCore](Sources/AppLaunchCore/Documentation.docc),
+[WhatsNewUI](Sources/WhatsNewUI/Documentation.docc)).
 [DESIGN.md](./DESIGN.md) covers the rules for the screen and the launch order, the reasons behind
 them, and how an app integrates the package.
 
