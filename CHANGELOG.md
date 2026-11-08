@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-08
+
 ### Fixed
 
 - `WhatsNewTracker.settle()` wrote the last launched version back along with clearing the waiting
