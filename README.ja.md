@@ -48,7 +48,7 @@ if let release = start.release {
 
 ## ドキュメント
 
-API の説明は DocC（[AppLaunchCore](https://no-problem-dev.github.io/swift-app-launch/documentation/applaunchcore/)・[WhatsNewUI](https://no-problem-dev.github.io/swift-app-launch/documentation/whatsnewui/)）にあります。
+API の説明は DocC（[AppLaunchCore](Sources/AppLaunchCore/Documentation.docc)・[WhatsNewUI](Sources/WhatsNewUI/Documentation.docc)）にあります。
 [DESIGN.md](./DESIGN.md) に、画面と起動の順番の決まり・その理由・アプリへの組み込み方があります。
 
 ## 導入
