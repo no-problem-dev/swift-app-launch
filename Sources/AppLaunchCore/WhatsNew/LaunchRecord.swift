@@ -27,18 +27,35 @@ public protocol LaunchRecordStore: Sendable {
 ///
 /// Plain strings, not an encoded value, so an app that already stores these two values can pass
 /// its existing keys and keep what devices already have.
+///
+/// Give it a suite's **name**, or a `UserDefaults` instance the app already holds (such as an App
+/// Group suite, or one a test or scenario set up). With a name it opens the suite on each call.
+///
+/// ```swift
+/// let store = UserDefaultsLaunchRecordStore()                                     // standard
+/// let shared = UserDefaultsLaunchRecordStore(suiteName: "group.com.example.app")  // app group
+/// let held = UserDefaultsLaunchRecordStore(defaults: appGroupDefaults)            // an instance
+/// ```
 public struct UserDefaultsLaunchRecordStore: LaunchRecordStore {
 
-    private let suiteName: String?
+    private let source: Source
     private let lastLaunchedVersionKey: String
     private let pendingReleaseKey: String
 
-    /// The store in `UserDefaults.standard`.
+    /// The store in a `UserDefaults` instance the app holds, `UserDefaults.standard` by default.
+    ///
+    /// The instance is kept and used from whichever thread calls the store. `UserDefaults` is
+    /// documented as thread-safe, which is why the store stays `Sendable`.
     /// - Parameters:
+    ///   - defaults: Where to store.
     ///   - lastLaunchedVersionKey: The key for ``LaunchRecord/lastLaunchedVersion``.
     ///   - pendingReleaseKey: The key for ``LaunchRecord/pendingRelease``.
-    public init(lastLaunchedVersionKey: String = "launch.lastVersion", pendingReleaseKey: String = "whatsNew.pending") {
-        self.suiteName = nil
+    public init(
+        defaults: UserDefaults = .standard,
+        lastLaunchedVersionKey: String = "launch.lastVersion",
+        pendingReleaseKey: String = "whatsNew.pending"
+    ) {
+        self.source = .instance(SharedDefaults(defaults))
         self.lastLaunchedVersionKey = lastLaunchedVersionKey
         self.pendingReleaseKey = pendingReleaseKey
     }
@@ -54,14 +71,19 @@ public struct UserDefaultsLaunchRecordStore: LaunchRecordStore {
         pendingReleaseKey: String = "whatsNew.pending"
     ) {
         guard UserDefaults(suiteName: suiteName) != nil else { return nil }
-        self.suiteName = suiteName
+        self.source = .suite(suiteName)
         self.lastLaunchedVersionKey = lastLaunchedVersionKey
         self.pendingReleaseKey = pendingReleaseKey
     }
 
     private var defaults: UserDefaults {
-        // The name was accepted in init, and UserDefaults refuses a name only by what it is.
-        suiteName.map { UserDefaults(suiteName: $0)! } ?? .standard
+        switch source {
+        case let .suite(name):
+            // The name was accepted in init, and UserDefaults refuses a name only by what it is.
+            UserDefaults(suiteName: name)!
+        case let .instance(shared):
+            shared.defaults
+        }
     }
 
     public func load() -> LaunchRecord {
@@ -78,6 +100,17 @@ public struct UserDefaultsLaunchRecordStore: LaunchRecordStore {
 
     private func set(_ value: String?, forKey key: String) {
         if let value { defaults.set(value, forKey: key) } else { defaults.removeObject(forKey: key) }
+    }
+
+    private enum Source: Sendable {
+        case suite(String)
+        case instance(SharedDefaults)
+    }
+
+    /// `UserDefaults` is thread-safe (Apple's documentation) but not marked `Sendable` in every SDK.
+    private struct SharedDefaults: @unchecked Sendable {
+        let defaults: UserDefaults
+        init(_ defaults: UserDefaults) { self.defaults = defaults }
     }
 }
 

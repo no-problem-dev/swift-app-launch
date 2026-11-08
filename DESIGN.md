@@ -1,6 +1,6 @@
 # swift-app-launch — design
 
-Status: 0.1.0, unreleased. Written 2026-11-08 from two apps that had each solved this on their
+Status: 0.1.0 released 2026-11-08. Written 2026-11-08 from two apps that had each solved this on their
 own: one with the version hard-coded in the sheet, one with releases declared as values. The
 package takes the second shape.
 
@@ -43,7 +43,7 @@ These are what the pager enforces, or what the app is asked to keep.
 | No bullet lists | App (`WhatsNewPageText` has one heading and one line) | Bullets turn a page into a list of features. One page, one change |
 | One to three pages per release | `Release` (precondition) | Past three, people tap through without looking |
 | The illustration moves, and stands still under Reduce Motion | App draws it, pager passes `WhatsNewArtContext.animates` and fades between pages instead of sliding | A moving picture shows the change happening. Reduce Motion is a request to stop that |
-| No price, plan or purchase invitation | App | The screen is a thank-you for updating. A sales pitch on it teaches people to close it next time |
+| No price, plan or purchase invitation | App | The screen is a thank-you for updating. A sales pitch on it teaches people to close it next time. An invitation (such as a free trial) is its own screen after the pager closes, in the `followUp` slot (§6) |
 | A close button on every page | Pager | The person decides how long to look. The screen must never feel like a gate |
 | A permission is asked only on the page of the feature that needs it | App, through `WhatsNewAction.permission` | Asking at launch, before the feature is seen, gets "no". On that page the close button is hidden and pulling down is disabled, because an explanation before a permission dialog must lead to the dialog; declining happens in the dialog (App Review Guideline 5.1.1(iv); a "Later" there was rejected) |
 | Shown at most once per release, and not after onboarding | `WhatsNewTracker`, `LaunchQueue` | Someone who just onboarded has nothing to catch up on |
@@ -77,7 +77,8 @@ the device counts as a fresh install. The argument is read only when nothing is 
 
 **Stored form.** Two plain strings in `UserDefaults` (`launch.lastVersion`, `whatsNew.pending` by
 default). Plain strings, so an app that already keeps these values passes its own keys and keeps
-what devices have.
+what devices have. The store takes `UserDefaults.standard`, a suite's name, or a `UserDefaults`
+instance the app holds (an App Group suite, or one a test set up).
 
 ## 6. The launch order
 
@@ -97,6 +98,13 @@ what devices have.
 "Held" items stay in `held`; the app stores the ones that should come back. Items that should follow
 another (a review ask decided when what's new closes) go in `dismissed(_:then:)`, so nothing slips in
 between.
+
+An invitation that follows what's new, such as starting a free trial, is a `followUp` passed in
+`dismissed(_:then:)` when the pager closes. It never goes on a page (§3).
+
+**Pages decided during the launch.** A page that depends on a feature flag known after the pager
+appears is added by passing the pager a new release of the same version; the page on screen stays
+(`WhatsNewSession.update(from:to:)`). A release of another version is a new screen.
 
 Initialisation (sign-in, migration, first data load) is the app's: it does not read `next` until the
 first screen can be shown.
@@ -145,7 +153,7 @@ onEvent: { event in
 - 枚ごとに、上の半分〜6割に動くイラスト。その下に大きな見出し1つと短い1行だけ。**文字だけのお知らせは伝わらない**
 - 箇条書きにしない。1枚に1つの変化
 - 1つの版で1〜3枚
-- 値段・プラン・購入の誘いを置かない。更新してくれた人へのお知らせで、売り込みを載せると次から閉じられる
+- 値段・プラン・購入の誘いを置かない。更新してくれた人へのお知らせで、売り込みを載せると次から閉じられる。無料体験などの誘いは、お知らせを閉じた後の別の画面（`followUp`）で出す
 - × でいつでも閉じられる（どの枚にも置く）
 - 許可を聞くのはその機能の枚だけ。起動の瞬間には聞かない。その枚では × を隠し、下に引いて閉じられないようにする。許可の前の説明は必ず OS のダイアログへ進め、断るのはダイアログで選ぶ（審査 5.1.1(iv)。説明に「あとで」を置いてリジェクトされた）
 - 「動きを減らす」がオンなら、イラストは終わりの形で止め、枚の切り替えはスライドでなくフェードにする
@@ -167,6 +175,7 @@ onEvent: { event in
 - ペイウォールを出した起動では、お知らせ・評価・質問を次に回す（捨てない）
 - 評価のお願いと質問は1回の起動で1つまで。お知らせの後に1つ続くのが最大
 - シートは止めない
+- フィーチャーフラグなど起動の途中で決まる枚は、出している間に同じ版の `Release` を渡して足す。いま出している枚はそのまま
 
 ### 計測
 

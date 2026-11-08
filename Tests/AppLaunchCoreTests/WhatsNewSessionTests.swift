@@ -45,4 +45,44 @@ struct WhatsNewSessionTests {
         #expect(closed.parameters == ["release": .text("1.6.1"), "page": .count(1), "pages": .count(2), "via": .text("swipe_down")])
         #expect(WhatsNewCloseVia.allCases.map(\.rawValue) == ["close_button", "finished", "swipe_down"])
     }
+
+    @Test("後から枚が足されたら、いまの枚を出したまま数を増やす")
+    func pagesAdded() {
+        let before = Release(version: "1.6.1", pages: [NewsPage.yearCards, .yearNotes])
+        let after = Release(version: "1.6.1", pages: [NewsPage.reminder, .yearCards, .yearNotes])
+        var session = WhatsNewSession(before)
+        _ = session.advance()
+        #expect(session.isLast)
+        session.update(from: before, to: after)
+        #expect(session.pageCount == 3)
+        #expect(session.index == 2)
+        #expect(session.isLast)
+
+        session.update(from: after, to: Release(version: "1.6.1", pages: [NewsPage.yearCards, .yearNotes, .reminder]))
+        #expect(session.index == 1)
+        #expect(!session.isLast)
+        #expect(session.advance() == nil)
+        #expect(session.advance() == .closed(release: "1.6.1", page: 3, pages: 3, via: .finished))
+    }
+
+    @Test("いまの枚が外されたら、同じ位置か最後の枚に寄せる")
+    func pageRemoved() {
+        let before = Fixture.v160
+        var session = WhatsNewSession(before)
+        _ = session.advance()
+        _ = session.advance()
+        let after = Release(version: "1.6.0", pages: [NewsPage.unlimitedBooks, .memoOnShelf])
+        session.update(from: before, to: after)
+        #expect(session.index == 1)
+        #expect(session.close(via: .closeButton) == .closed(release: "1.6.0", page: 2, pages: 2, via: .closeButton))
+    }
+
+    @Test("閉じた後の変化は受けない")
+    func noUpdateAfterClose() {
+        let before = Fixture.v180
+        var session = WhatsNewSession(before)
+        _ = session.advance()
+        session.update(from: before, to: Release(version: "1.8.0", pages: [NewsPage.memoOnShelf, .reminder]))
+        #expect(session.pageCount == 1)
+    }
 }
