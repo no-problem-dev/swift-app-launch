@@ -1,6 +1,6 @@
 # ``WhatsNewUI``
 
-Show a release's pages one at a time, with the app's own illustrations, a close button on every page, and Reduce Motion respected.
+Draw the what's-new card from a campaign's values: an illustration, a heading and one line, one button, and a close button.
 
 @Metadata {
     @PageColor(blue)
@@ -8,37 +8,32 @@ Show a release's pages one at a time, with the app's own illustrations, a close 
 
 ## Overview
 
-``WhatsNewPager`` lays out each page as an illustration on the upper half to 60 percent, then one
-heading and one short line (``WhatsNewPageText``). The app draws the illustration and is told
-through ``WhatsNewArtContext`` whether to move. A page that needs a permission replaces "Next" with
-``WhatsNewAction/permission(_:request:)``; that page hides the close button and cannot be pulled
-down, so the explanation always leads to the system dialog.
+``WhatsNewCard`` lays out an illustration on the upper half to 60 percent, then one heading and
+one short line from ``AppLaunchCore/WhatsNewCardContent``. Without `art:`, it draws the campaign's
+image itself (``WhatsNewImageView``); with it, the app draws the illustration and is told through
+``WhatsNewArtContext`` whether to move.
 
 ```swift
-.fullScreenCover(item: $release) { release in
-    WhatsNewPager(
-        release,
-        onEvent: analytics.record,
-        onClose: { via in
-            tracker.settle()
-            self.release = nil
-        },
-        text: { page in WhatsNewPageText(title: page.title, message: page.line) },
-        action: { page in
-            page == .reminders ? .permission(Text("Turn on reminders")) { await reminders.requestAccess() } : nil
-        },
-        art: { page, context in page.art(animates: context.animates) }
-    )
-    .buttonStyle(.borderedProminent)
+struct WhatsNewPlacement: CampaignPlacement {
+    static let name = CampaignTemplate.WhatsNew.name
+    static let fields = CampaignTemplate.WhatsNew.fields
+    typealias Values = WhatsNewCardContent
 }
+
+RootView()
+    .campaignPlacement(WhatsNewPlacement.self, in: campaigns) { offer in
+        WhatsNewCard(offer.values, onPrimary: offer.tap, onClose: { offer.dismiss(.closeButton) }) { image, context in
+            AutoCheckArt(animates: context.animates)
+        }
+        .buttonStyle(.borderedProminent)
+    }
 ```
 
 ## Topics
 
-### Showing pages
+### The card
 
-- ``WhatsNewPager``
-- ``WhatsNewPageText``
-- ``WhatsNewAction``
+- ``WhatsNewCard``
+- ``WhatsNewImageView``
 - ``WhatsNewArtContext``
 - ``WhatsNewLabels``

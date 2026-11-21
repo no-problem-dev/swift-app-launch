@@ -2,11 +2,9 @@
 public enum LaunchSlot: Int, Hashable, Sendable, Comparable, CaseIterable {
     /// The first-run flow, including a paywall at its end.
     case onboarding
-    /// What changed in this version.
+    /// What changed in this version: the card a `whats_new` campaign hands the app.
     case whatsNew
-    /// The app's own screen asking for a rating, typically right after what's new.
-    case reviewAsk
-    /// Any other single question or invitation the app wants to put to someone at launch.
+    /// A single question or invitation the app wants to put to someone at launch.
     case followUp
     /// Everything else: sheets that wait until nothing above is due.
     case sheet
@@ -18,13 +16,12 @@ public enum LaunchSlot: Int, Hashable, Sendable, Comparable, CaseIterable {
 ///
 /// ```swift
 /// enum LaunchScreen: LaunchItem {
-///     case onboarding, whatsNew(Release<NewsPage>), reviewAsk, readingQuestion, importOldBooks
+///     case onboarding, whatsNew, readingQuestion, importOldBooks
 ///
 ///     var slot: LaunchSlot {
 ///         switch self {
 ///         case .onboarding: .onboarding
 ///         case .whatsNew: .whatsNew
-///         case .reviewAsk: .reviewAsk
 ///         case .readingQuestion: .followUp
 ///         case .importOldBooks: .sheet
 ///         }
@@ -51,16 +48,18 @@ public enum LaunchStep<Item: LaunchItem>: Hashable, Sendable {
 /// The app lists what could appear; the queue owns the order and the rules:
 ///
 /// 1. One thing at a time. While an item is on screen, nothing else is due.
-/// 2. Highest ``LaunchSlot`` first: onboarding, what's new, a review ask, a follow-up, then sheets.
-///    Within a slot, in the order added.
+/// 2. Highest ``LaunchSlot`` first: onboarding, what's new, a follow-up, then sheets. Within a
+///    slot, in the order added.
 /// 3. A launch that showed onboarding shows no announcements. What's new is **dropped** (someone
-///    who just onboarded has nothing to catch up on); a review ask and follow-ups are **held** for
-///    a later launch.
-/// 4. A launch that showed a paywall holds what's new, the review ask and follow-ups for a later
-///    launch.
-/// 5. At most one of a review ask or a follow-up per launch. What's new may come before it; that
-///    pair is the most a launch shows. The rest are held.
+///    who just onboarded has nothing to catch up on); follow-ups are **held** for a later launch.
+/// 4. A launch that showed a paywall holds what's new and follow-ups for a later launch.
+/// 5. At most one follow-up per launch. What's new may come before it; that pair is the most a
+///    launch shows. The rest are held.
 /// 6. Sheets are never held.
+///
+/// The queue does not decide whether what's new is due, or in which version: a `whats_new`
+/// campaign does. Add the what's-new item when the campaign engine hands the app its card, and let
+/// the engine wait while the queue has something on screen (`isBusy: { queue.presenting != nil }`).
 ///
 /// ``next`` is a pure reading of the state; the mutating methods report what happened.
 public struct LaunchQueue<Item: LaunchItem>: Hashable, Sendable {
@@ -75,7 +74,7 @@ public struct LaunchQueue<Item: LaunchItem>: Hashable, Sendable {
     public private(set) var hasShownOnboarding = false
     /// Whether this launch showed a paywall.
     public private(set) var hasShownPaywall = false
-    /// Whether this launch showed a review ask or a follow-up.
+    /// Whether this launch showed a follow-up.
     public private(set) var hasShownFollowUp = false
 
     /// - Parameter items: What could appear at this launch, in any order.
@@ -128,7 +127,7 @@ public struct LaunchQueue<Item: LaunchItem>: Hashable, Sendable {
             waiting.removeAll { $0.slot == .whatsNew }
             dropped += whatsNew
             return whatsNew
-        case .reviewAsk, .followUp:
+        case .followUp:
             hasShownFollowUp = true
             return []
         case .whatsNew, .sheet:
@@ -139,7 +138,7 @@ public struct LaunchQueue<Item: LaunchItem>: Hashable, Sendable {
     /// An item left the screen.
     ///
     /// Pass what should follow it in `then`, decided before it closes, so nothing else slips in
-    /// between (such as a review ask decided when what's new closes).
+    /// between (such as an invitation decided when what's new closes).
     /// - Parameters:
     ///   - item: The item that closed.
     ///   - followers: Items to add as it closes.
@@ -160,7 +159,7 @@ public struct LaunchQueue<Item: LaunchItem>: Hashable, Sendable {
             true
         case .whatsNew:
             !hasShownOnboarding && !hasShownPaywall
-        case .reviewAsk, .followUp:
+        case .followUp:
             !hasShownOnboarding && !hasShownPaywall && !hasShownFollowUp
         }
     }

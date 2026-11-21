@@ -1,11 +1,11 @@
 # swift-app-launch — design
 
-Status: 0.1.0 released 2026-11-08. Written 2026-11-08 from two apps that had each solved this on their
-own: one with the version hard-coded in the sheet, one with releases declared as values. The
-package takes the second shape.
+Status: 0.3.0 (2026-11-21). Rewritten for appgrowstack (app-playbook
+`docs/growth-platform-design-2026-11-21.md` §3.2 and §4.2): which version shows what, and to whom,
+moved to the `whats_new` campaign type of swift-app-campaign. What is left here is the card's look
+and the order of the app's own launch screens.
 
-A summary in Japanese is at the end ([日本語の要約](#日本語の要約)). It holds the screen rules in
-full, since they are written down nowhere else.
+A summary in Japanese is at the end ([日本語の要約](#日本語の要約)).
 
 ---
 
@@ -13,174 +13,79 @@ full, since they are written down nowhere else.
 
 Two jobs that meet at launch:
 
-1. **Tell people who updated what is new, in a few illustrated pages.** The app declares, per
-   version, which pages to show. The package decides which release is due at a launch, carries one
-   that could not be shown to the next launch, and provides the pager that shows it.
+1. **Draw the what's-new card from a campaign's values.** A `whats_new` campaign is triggered by
+   `app_updated` (the first launch of a newer version, which the campaign engine records), shown
+   at most once, and compared with a holdout. Its values are a heading, one line, an optional image
+   and an optional button label. `WhatsNewCard` draws them.
 2. **Decide in one place what appears at launch, and in what order.** Onboarding, what's new, a
-   rating request, a follow-up question and other sheets each want the screen at launch. Left to
-   each screen, they stack or cancel each other. `LaunchQueue` takes what could appear and answers
-   what to show now.
+   follow-up question and other sheets each want the screen at launch. Left to each screen, they
+   stack or cancel each other. `LaunchQueue` takes what could appear and answers what to show now.
 
-## 2. Non-goals, and why
+## 2. Who decides what
 
-| Not provided | Why |
+| Question | Where it is decided |
 |---|---|
-| The illustrations, headings and lines | They are the content. A shared drawing would make every app's update screen look the same |
-| An onboarding flow | Onboarding differs completely between apps. What they share (a slot that comes first, what it drops) is in `LaunchQueue` |
-| A rating decision | `swift-review` owns when to ask. The queue only gives a review ask its place in the order |
-| A price, a plan or a purchase button on a page | See §3. An update screen is for what changed |
-| A "Later" button | Pages advance with one button; the close button is the way out. A "Later" before a permission dialog is rejected in review (§3) |
-| A public version type | `swift-review` is to own `AppVersion`. Taking strings keeps this package free of that dependency (§5) |
-| An analytics dependency | Events leave through a closure (§7) |
+| Which version announces what | the campaign: trigger `app_updated` with `to_version`, `app_version` (`whats_new.trigger`) |
+| Once only | the campaign's `limits.max_shown` 1 (`whats_new.max_shown`) |
+| What the button opens | the campaign's `on_tap`: the new feature's screen (`whats_new.on_tap`) |
+| No price or purchase invitation | the campaign check (`whats_new.no_purchase`) and the card, which has no place for one |
+| Whether it worked | the holdout: the share who used the feature within the goal's window |
+| Not on top of onboarding or another screen | the engine waits while `isBusy`; the app's `LaunchQueue` says what is on screen |
+| The look | **this package** (`WhatsNewCard`) |
 
-## 3. Rules for the screen
+The checks are in app-growth `schema/inapp/templates/whats_new.json`.
 
-These are what the pager enforces, or what the app is asked to keep.
+## 3. Rules for the card
 
 | Rule | Who keeps it | Why |
 |---|---|---|
-| Each page: an illustration on the upper half to 60 percent, then one heading and one short line | Pager (`artFraction` is clamped to 0.5–0.6) | Text alone does not land. A screen of text after an update reads as release notes, and release notes are skipped |
-| No bullet lists | App (`WhatsNewPageText` has one heading and one line) | Bullets turn a page into a list of features. One page, one change |
-| One to three pages per release | `Release` (precondition) | Past three, people tap through without looking |
-| The illustration moves, and stands still under Reduce Motion | App draws it, pager passes `WhatsNewArtContext.animates` and fades between pages instead of sliding | A moving picture shows the change happening. Reduce Motion is a request to stop that |
-| No price, plan or purchase invitation | App | The screen is a thank-you for updating. A sales pitch on it teaches people to close it next time. An invitation (such as a free trial) is its own screen after the pager closes, in the `followUp` slot (§6) |
-| A close button on every page | Pager | The person decides how long to look. The screen must never feel like a gate |
-| A screen title, if any, names the screen and sits beside the close button, in one line | Pager (`title:`, as `Text` or a view in the app's type style) | It tells what the screen is. It is not a page's heading, so each page still has one |
-| A page may move to a next step for setting up the feature it showed (a choice, then the permission it needs) | App draws it, pager places it (`WhatsNewAction.step`) | Setting up right where the feature was seen is what makes the permission land. The step is not more announcement: no more text pages, no price, no "Later" before a permission dialog |
-| A permission is asked only on the page of the feature that needs it | App, through `WhatsNewAction.permission` | Asking at launch, before the feature is seen, gets "no". On that page the close button is hidden and pulling down is disabled, because an explanation before a permission dialog must lead to the dialog; declining happens in the dialog (App Review Guideline 5.1.1(iv); a "Later" there was rejected) |
-| Shown at most once per release, and not after onboarding | `WhatsNewTracker`, `LaunchQueue` | Someone who just onboarded has nothing to catch up on |
+| An illustration on the upper half to 60 percent, then one heading and one short line | Card (`artFraction` is clamped to 0.5–0.6); the template's `headline` (20) and `body` (60) | Text alone does not land. A screen of text after an update reads as release notes (rating R28) |
+| No bullet lists | The values: one heading, one line | One card, one change |
+| One card per version | The campaign (`max_shown` 1) | Past one, people tap through |
+| The illustration moves, and stands still under Reduce Motion | App draws it (`art:`), the card passes `WhatsNewArtContext.animates` | A moving picture shows the change happening |
+| No price, plan or purchase invitation | The campaign check; the card has no place for one | The card is a thank-you for updating (R28) |
+| A close button, always | Card | The person decides how long to look |
+| A permission is asked on the feature's own screen, which the button opens | The app's screen | Asking before the feature is seen gets "no" (5.1.1(iv)) |
 
-## 4. Which release is due
-
-Each version with something to tell gets one `Release(version:pages:)` in a `ReleaseCatalog`.
-
-- **Fresh install or same version:** nothing.
-- **After an update:** the newest release newer than the previous version and not newer than the
-  current one. Someone who skipped from 1.4 to 1.8 sees one release, the newest, not three.
-- **Carried over:** the release decided on is stored until `settle()` is called. If the app is
-  closed before the release is, or the launch was taken by a paywall, the next launch shows it. If
-  a newer release becomes due meanwhile, only the newer one is shown. A carried release newer than
-  the running version (after a downgrade) is not shown.
-- **Dropped:** a launch that showed onboarding drops what's new; the app calls `settle()`.
-
-## 5. Versions
-
-The public API takes versions as `String` and reads them internally as one to three dot-separated
-numbers, the same reading as `swift-review`'s `AppVersion` (`1.10.0` > `1.9.0`, `1.6` == `1.6.0`).
-A `Release` version must have two or three parts, matching the analytics pattern for `release`.
-
-A version that cannot be read (such as `1.6.0-beta`) shows nothing and records nothing: an
-unreadable version never puts a screen in front of anyone.
-
-**Starting to record late.** An app that ships this package after it has users has no recorded
-version on existing devices. Pass `untrackedEarlierUse:` with the oldest version that earlier use
-could have been, when the app can tell from its own data that the device was used before; otherwise
-the device counts as a fresh install. The argument is read only when nothing is recorded.
-
-**Stored form.** Two plain strings in `UserDefaults` (`launch.lastVersion`, `whatsNew.pending` by
-default). Plain strings, so an app that already keeps these values passes its own keys and keeps
-what devices have. The store takes `UserDefaults.standard`, a suite's name, or a `UserDefaults`
-instance the app holds (an App Group suite, or one a test set up).
-
-## 6. The launch order
+## 4. The launch order
 
 `LaunchQueue` is a value. The app adds what could appear (its own `LaunchItem` type, each with a
 `LaunchSlot`), reads `next`, and reports `presented`, `dismissed` and `paywallShown`.
 
 1. One thing at a time. While an item is on screen, `next` is `.busy`.
-2. Highest slot first: `onboarding`, `whatsNew`, `reviewAsk`, `followUp`, `sheet`. Within a slot,
-   in the order added.
-3. A launch that showed onboarding shows no announcements: what's new is dropped, a review ask and
-   follow-ups are held.
-4. A launch that showed a paywall holds what's new, the review ask and follow-ups.
-5. At most one of a review ask or a follow-up per launch. What's new may come before it; that pair
-   is the most a launch shows.
+2. Highest slot first: `onboarding`, `whatsNew`, `followUp`, `sheet`. Within a slot, in the order
+   added.
+3. A launch that showed onboarding shows no announcements: what's new is dropped, follow-ups are
+   held.
+4. A launch that showed a paywall holds what's new and follow-ups.
+5. At most one follow-up per launch. What's new may come before it; that pair is the most a launch
+   shows.
 6. Sheets are never held.
 
-"Held" items stay in `held`; the app stores the ones that should come back. Items that should follow
-another (a review ask decided when what's new closes) go in `dismissed(_:then:)`, so nothing slips in
-between.
+With campaigns: give the engine `isBusy: { queue.presenting != nil || … }`, so a campaign waits
+while a launch screen is up. When the engine hands the app the what's-new card, report it to the
+queue (`presented(.whatsNew)`), and `dismissed(.whatsNew, then: …)` when it closes, so a follow-up
+comes after it and not on top of it.
 
-An invitation that follows what's new, such as starting a free trial, is a `followUp` passed in
-`dismissed(_:then:)` when the pager closes. It never goes on a page (§3).
+The rating prompt is not in the queue: it is a `system` placement with no screen (swift-review).
 
-**Pages decided during the launch.** A page that depends on a feature flag known after the pager
-appears is added by passing the pager a new release of the same version; the page on screen stays
-(`WhatsNewSession.update(from:to:)`). A release of another version is a new screen.
+## 5. What was removed in 0.3.0, and where it went
 
-Initialisation (sign-in, migration, first data load) is the app's: it does not read `next` until the
-first screen can be shown.
-
-## 7. Analytics
-
-The pager reports through `onEvent`:
-
-| Event | Parameters | When |
-|---|---|---|
-| `whats_new_shown` | `release` | The pager appeared (once) |
-| `whats_new_closed` | `release`, `page` (from 1), `pages`, `via` | It closed (once): `close_button`, `finished` (the last page's button), `swipe_down` (pulled down, or removed by the app) |
-
-The names follow the shared analytics catalog. A bridge to an analytics package is a few lines:
-
-```swift
-onEvent: { event in
-    analytics.send(event.name, event.parameters.mapValues { value in
-        switch value {
-        case let .text(text): .text(text)
-        case let .count(count): .count(count)
-        }
-    })
-}
-```
-
-## 8. Integrating
-
-1. Declare the catalog and create a `WhatsNewTracker` once (it is a value; keep it where the app
-   keeps its other launch state).
-2. At launch, call `begin(bundle: .main)` as early as possible.
-3. When the first screen can be shown, build a `LaunchQueue` from what could appear:
-   onboarding if not completed, `start.release` if any, held follow-ups from an earlier launch,
-   other sheets.
-4. Present `next`. Report `presented` and `dismissed`; when onboarding is presented and drops what's
-   new, call `tracker.settle()`.
-5. In the pager's `onClose`, call `tracker.settle()`, decide the review ask (with `swift-review`, at
-   the moment after what's new), and pass it to `dismissed(_:then:)`.
+| Removed | Now |
+|---|---|
+| `Release`, `ReleaseCatalog`, `WhatsNewTracker`, `LaunchStart` | the `whats_new` campaign (trigger `app_updated`, `max_shown` 1) |
+| `VersionChange`, `VersionNumber`, `PreviousLaunch` | the engine records `app_updated { from_version, to_version }` |
+| `LaunchRecord` and its stores | the engine's own record |
+| `WhatsNewPager`, `WhatsNewSession`, `WhatsNewPageText`, `WhatsNewAction` | `WhatsNewCard` (one card) |
+| `WhatsNewEvent`, `LaunchMetricValue` | the engine's `campaign_shown`, `campaign_tapped`, `campaign_dismissed` |
+| `LaunchSlot.reviewAsk` | no own review screen (rating R2, R3); the rating prompt is a `system` placement |
 
 ## 日本語の要約
 
-更新した人に新しくなったことを数枚で伝え、起動のときに何をどの順番で出すかを1か所で決める。
+**何のためのパッケージか。** 型 `whats_new` のキャンペーンの値からお知らせの枚を描くことと、起動のときにアプリ自身の画面を何の順に出すかの純粋な関数。どの版で何を誰に出すかは持たない。それは swift-app-campaign の件（きっかけ `app_updated`・`max_shown` 1・holdout）が決める。
 
-### お知らせの画面の決まり
+**お知らせの枚の決まり。** 上の半分〜6割にイラスト（アプリが描けば動かしてよい・「動きを減らす」で止める）。その下に見出し1つと短い1行（件の `headline` 20字・`body` 60字）。箇条書きにしない。値段・購入の誘いを置かない（件の check と、枚にその場所が無いこと）。× でいつでも閉じられる。ボタンは件の `on_tap`（新しい機能の画面）へ進み、許可はその画面で聞く。
 
-- 枚ごとに、上の半分〜6割に動くイラスト。その下に大きな見出し1つと短い1行だけ。**文字だけのお知らせは伝わらない**
-- 箇条書きにしない。1枚に1つの変化
-- 1つの版で1〜3枚
-- 値段・プラン・購入の誘いを置かない。更新してくれた人へのお知らせで、売り込みを載せると次から閉じられる。無料体験などの誘いは、お知らせを閉じた後の別の画面（`followUp`）で出す
-- × でいつでも閉じられる（どの枚にも置く）
-- 画面の上の一言（「新しくなりました」）は × の横に1行で置ける（`title:`。`Text` でも、アプリの文字の型の View でもよい）。枚の見出しではないので、枚ごとの見出しは1つのまま
-- 枚のボタンで、その機能を使い始める次の段（時刻を選ぶ→その機能の許可）に替えられる（`WhatsNewAction.step`）。段はお知らせの続きではない: 文字の枚を足さない・値段を置かない・許可の前に「あとで」を置かない。許可へ進む段は `asksPermission: true` で × を隠す
-- 許可を聞くのはその機能の枚だけ。起動の瞬間には聞かない。その枚では × を隠し、下に引いて閉じられないようにする。許可の前の説明は必ず OS のダイアログへ進め、断るのはダイアログで選ぶ（審査 5.1.1(iv)。説明に「あとで」を置いてリジェクトされた）
-- 「動きを減らす」がオンなら、イラストは終わりの形で止め、枚の切り替えはスライドでなくフェードにする
-- 同じ版のお知らせは1回だけ。オンボーディングを見せた起動では出さない
+**起動の順番。** 1つずつ。オンボーディング → お知らせ → 後に続く質問 → その他のシート。オンボーディングを見せた起動ではお知らせを捨て、質問は次に回す。ペイウォールを出した起動ではお知らせと質問を次に回す。質問は1回の起動で1つまで。キャンペーンの判定には `isBusy: { queue.presenting != nil }` を渡し、お知らせの枚が出たら `presented(.whatsNew)`、閉じたら `dismissed(.whatsNew, then:)` を伝える。評価の依頼は画面を持たないので順番に入れない。
 
-### どの版を出すか
-
-- 新しく入れた起動・同じ版の起動では出さない
-- 前の版より新しく、いまの版以下の宣言のうち、一番新しい1件だけ（いくつも飛ばした人にも1件）
-- 出せなかった分（閉じる前にアプリが終わった・ペイウォールに起動を譲った）は次の起動に持ち越す。その間に新しい版が来たら新しい方だけ
-- 版は文字列で受け、中で1〜3つの数字として比べる。読めない版では何も出さず、何も書かない
-- 途中から記録を始めたアプリは、前から使っていた跡があるときだけ `untrackedEarlierUse:` に想定の版を渡す
-
-### 起動の順番
-
-- 1つずつ。出している間はほかを出さない
-- オンボーディング → お知らせ → 評価のお願い → 後に続く質問 → その他のシート
-- オンボーディングを見せた起動では、お知らせを捨て、評価と質問は次に回す
-- ペイウォールを出した起動では、お知らせ・評価・質問を次に回す（捨てない）
-- 評価のお願いと質問は1回の起動で1つまで。お知らせの後に1つ続くのが最大
-- シートは止めない
-- フィーチャーフラグなど起動の途中で決まる枚は、出している間に同じ版の `Release` を渡して足す。いま出している枚はそのまま
-
-### 計測
-
-`whats_new_shown{release}` と `whats_new_closed{release, page, pages, via}`。`via` は `close_button`・`finished`・`swipe_down`。名前は共通のカタログに合わせた。
+**0.3.0 で消した物。** 版の宣言と、どの版を出すかの判定（`Release`・`ReleaseCatalog`・`WhatsNewTracker`）・前回の版との変化・記録の置き場所・数枚を送る `WhatsNewPager`・計測（`whats_new_shown`・`whats_new_closed`）・評価のお願いの段（`LaunchSlot.reviewAsk`）。
