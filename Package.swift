@@ -1,13 +1,15 @@
 // swift-tools-version: 6.2
 import PackageDescription
 
-/// Telling people what changed after an update, and deciding in one place what appears at launch
-/// and in what order.
+/// The what's-new card a `whats_new` campaign shows, and one pure order for what appears at launch.
+///
+/// **It does not decide which version shows what, or to whom.** That is the `whats_new` campaign's
+/// job in swift-app-campaign (its `app_updated` trigger and its limits). This package draws the card
+/// from the campaign's values and orders the app's own launch screens.
 ///
 /// **No external dependencies.** SwiftPM resolves dependencies per package, so anything declared
-/// here lands on every consumer. Versions are taken as strings, so an app that already has a
-/// version type (such as `swift-review`'s `AppVersion`) passes its `description`; analytics leave
-/// through a closure, so no analytics package is needed either.
+/// here lands on every consumer. The card's values decode from the campaign's JSON as they are, so
+/// nothing here imports the campaign SDK.
 let package = Package(
     name: "swift-app-launch",
     defaultLocalization: "en",
@@ -16,10 +18,9 @@ let package = Package(
         .macOS(.v14)
     ],
     products: [
-        // The version change, the release declarations and which one is due, the stored record,
-        // the order of what appears at launch, and the analytics events. Foundation only.
+        // The order of what appears at launch, and the card's values. Foundation only.
         .library(name: "AppLaunchCore", targets: ["AppLaunchCore"]),
-        // The pager that shows a release's pages. The app draws the illustrations.
+        // The what's-new card. The app may draw the illustration.
         .library(name: "WhatsNewUI", targets: ["WhatsNewUI"])
     ],
     targets: [

@@ -5,15 +5,15 @@ import AppLaunchCore
 struct LaunchQueueTests {
     @Test("優先の順に1つずつ。出している間はほかを出さない")
     func priorityOneAtATime() {
-        var queue = LaunchQueue<Screen>([.importBooks, .reviewAsk, .whatsNew("1.6.1")])
+        var queue = LaunchQueue<Screen>([.importBooks, .trialOffer, .whatsNew("1.6.1")])
         #expect(queue.next == .present(.whatsNew("1.6.1")))
         queue.presented(.whatsNew("1.6.1"))
         #expect(queue.next == .busy(.whatsNew("1.6.1")))
         #expect(!queue.isIdle)
         queue.dismissed(.whatsNew("1.6.1"))
-        #expect(queue.next == .present(.reviewAsk))
-        queue.presented(.reviewAsk)
-        queue.dismissed(.reviewAsk)
+        #expect(queue.next == .present(.trialOffer))
+        queue.presented(.trialOffer)
+        queue.dismissed(.trialOffer)
         #expect(queue.next == .present(.importBooks))
         queue.presented(.importBooks)
         queue.dismissed(.importBooks)
@@ -21,7 +21,7 @@ struct LaunchQueueTests {
         #expect(queue.isIdle)
     }
 
-    @Test("オンボーディングを出した起動では、お知らせは捨て、評価と質問は次に回す。シートは出す")
+    @Test("オンボーディングを出した起動では、お知らせは捨て、質問は次に回す。シートは出す")
     func onboardingDropsAndHolds() {
         var queue = LaunchQueue<Screen>([.whatsNew("1.6.1"), .question, .onboarding, .importBooks])
         #expect(queue.next == .present(.onboarding))
@@ -35,7 +35,7 @@ struct LaunchQueueTests {
         #expect(queue.held == [.question])
     }
 
-    @Test("ペイウォールを出した起動では、お知らせ・評価・質問を次に回す（捨てない）")
+    @Test("ペイウォールを出した起動では、お知らせと質問を次に回す（捨てない）")
     func paywallHolds() {
         var queue = LaunchQueue<Screen>([.whatsNew("1.6.1"), .question, .deskCard])
         queue.paywallShown()
@@ -48,16 +48,16 @@ struct LaunchQueueTests {
     func followersComeNext() {
         var queue = LaunchQueue<Screen>([.whatsNew("1.6.1"), .deskCard])
         queue.presented(.whatsNew("1.6.1"))
-        queue.dismissed(.whatsNew("1.6.1"), then: [.reviewAsk])
-        #expect(queue.next == .present(.reviewAsk))
+        queue.dismissed(.whatsNew("1.6.1"), then: [.trialOffer])
+        #expect(queue.next == .present(.trialOffer))
     }
 
-    @Test("評価のお願いと質問は1回の起動で1つまで。評価が先")
+    @Test("誘いと質問は1回の起動で合わせて1つまで。足した順")
     func oneFollowUpPerLaunch() {
-        var queue = LaunchQueue<Screen>([.question, .reviewAsk, .otherQuestion])
-        #expect(queue.next == .present(.reviewAsk))
-        queue.presented(.reviewAsk)
-        queue.dismissed(.reviewAsk)
+        var queue = LaunchQueue<Screen>([.trialOffer, .question, .otherQuestion])
+        #expect(queue.next == .present(.trialOffer))
+        queue.presented(.trialOffer)
+        queue.dismissed(.trialOffer)
         #expect(queue.next == .idle)
         #expect(queue.held == [.question, .otherQuestion])
     }

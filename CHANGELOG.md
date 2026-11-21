@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-21
+
+The package no longer decides which version shows what, or to whom. That is the `whats_new`
+campaign type of swift-app-campaign 0.2.0 (`CampaignTemplate.WhatsNew`): triggered by
+`app_updated`, which the engine records on the first launch of a newer version, shown at most once,
+and compared with a holdout. What is left is the card's look and the launch order. Not compatible
+with 0.2.
+
+### Added
+
+- `WhatsNewCard`: one card drawn from the campaign's values, an illustration on the upper half to
+  60 percent, a heading, one line, one button and a close button. `art:` draws the illustration
+  yourself; without it, `WhatsNewImageView` draws the campaign's image.
+- `WhatsNewCardContent` and `WhatsNewImage`, which decode the `whats_new` placement's values as they
+  are, so they can be an app's placement `Values` without this package depending on the campaign SDK.
+
+### Changed (breaking)
+
+- `LaunchSlot.reviewAsk` is gone. Rule 5 of `LaunchQueue` is now "at most one follow-up per launch".
+  The rating prompt is a `system` placement with no screen.
+- `WhatsNewLabels` has `primary` and `close` (was `next`, `done`, `close`).
+- `WhatsNewArtContext` has no `index`.
+
+### Removed
+
+- `Release`, `ReleaseCatalog`, `WhatsNewTracker`, `LaunchStart`, `VersionChange`, `PreviousLaunch`,
+  `LaunchRecord`, `LaunchRecordStore`, `UserDefaultsLaunchRecordStore`, `InMemoryLaunchRecordStore`.
+- `WhatsNewPager`, `WhatsNewSession`, `WhatsNewPageText`, `WhatsNewAction`, `WhatsNewStepContext`.
+- `WhatsNewEvent`, `WhatsNewCloseVia`, `LaunchMetricValue`. The engine records `campaign_*`.
+
 ## [0.2.2] - 2026-11-08
 
 ### Added
